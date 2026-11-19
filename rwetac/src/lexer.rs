@@ -10,6 +10,7 @@
 
 use crate::token::{LexicalError, Token};
 use logos::{Logos, Span, SpannedIter};
+use std::iter::Peekable;
 
 /// The item type yielded by the [`Lexer`] iterator.
 ///
@@ -18,7 +19,7 @@ pub type LexerItem = Result<(Token, Span), LexicalError>;
 
 /// A lexer for the ETA language that wraps a [`logos::SpannedIter`].
 pub struct Lexer<'input> {
-    token_stream: SpannedIter<'input, Token>,
+    token_stream: Peekable<SpannedIter<'input, Token>>,
     last_tok: Token,
     pub input_length: usize,
     // If one last semicolon is needed
@@ -29,7 +30,7 @@ impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
         // the Token::lexer() method is provided by the Logos trait
         Self {
-            token_stream: Token::lexer(input).spanned(),
+            token_stream: Token::lexer(input).spanned().peekable(),
             input_length: input.len(),
             last_tok: Token::Eof,
             eof_emitted: false,
@@ -59,6 +60,20 @@ fn is_semicolon_candidate(tok: &Token) -> bool {
     )
 }
 
+fn is_for_increment_candidate(tok: &Token) -> bool {
+    matches!(
+        tok,
+        Token::Var(_)
+            | Token::Int(_)
+            | Token::True
+            | Token::False
+            | Token::RParen
+            | Token::RBrace
+            | Token::RBrack
+            | Token::StringLiteral(_)
+    )
+}
+
 /// Convenience function that collects all tokens from the input into a `Vec`.
 pub fn tokenize(input: &str) -> Vec<Result<(Token, Span), LexicalError>> {
     let lexer = Lexer::new(input);
@@ -77,6 +92,16 @@ impl<'input> Iterator for Lexer<'input> {
         // Loop to find consecutive empty lines and remove them
         // Other empty lines are needed for semicolon placement
         loop {
+            if let Some((Ok(next_token), _)) = self.token_stream.peek() {
+                //println!("Next token: {:?}", next_token);
+                //println!("Last token: {:?}", self.last_tok);
+                //println!();
+                if next_token == &Token::LBrace && is_for_increment_candidate(&self.last_tok) {
+                    self.last_tok = Token::Semicolon;
+                    return Some(Ok((Token::Semicolon, Span { start: 0, end: 0 })));
+                }
+            }
+
             let next_item = self.token_stream.next(); // unwrap Result<(Token, Span), _>
             match next_item {
                 Some((token_res, span)) => {

@@ -635,7 +635,6 @@ impl<'a> Parser<'a> {
         // Consume optional semicolon that lexer inserted after single-line condition
         println!("Increment: {:?}", increment);
         if *self.peek() == Token::Semicolon {
-
             self.consume();
         }
 
@@ -663,7 +662,7 @@ impl<'a> Parser<'a> {
             span: span_key.clone(),
         };
 
-        let mut kind;
+        let kind;
         // Adding the guard inside the look, if none enter a true
         if let Ok(g) = guard {
             kind = StatementKind::While {
