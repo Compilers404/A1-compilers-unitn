@@ -4,7 +4,7 @@ use std::collections::HashMap;
 fn main() {
     for mut e in examples() {
         println!("{}", pretty(&e));
-        let mut hm : HashMap<String, i64> = HashMap::new();
+        let mut hm: HashMap<String, i64> = HashMap::new();
         hm.insert("x".to_string(), 8);
         match eval(&e, &hm) {
             Ok(v) => println!("  = {v}"),
@@ -39,9 +39,8 @@ enum Expr {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
-    Var(String)
+    Var(String),
 }
-
 
 // Constructors, so the examples below read like the expressions they build.
 fn num(n: i64) -> Expr {
@@ -66,12 +65,19 @@ fn examples() -> Vec<Expr> {
         // 1 + 2 * x
         bin(Op::Add, num(1), bin(Op::Mul, num(2), var("x".to_string()))),
         // (x + x) * 3
-        bin(Op::Mul, bin(Op::Add, var("x".to_string()), var("x".to_string())), num(3)),
+        bin(
+            Op::Mul,
+            bin(Op::Add, var("x".to_string()), var("x".to_string())),
+            num(3),
+        ),
         // (10 - x) - y
-        bin(Op::Sub, bin(Op::Sub, num(10), var("x".to_string())), var("y".to_string())),
+        bin(
+            Op::Sub,
+            bin(Op::Sub, num(10), var("x".to_string())),
+            var("y".to_string()),
+        ),
     ]
 }
-
 
 // ---------------------------------------------------------------------------
 // Pretty printing
@@ -95,7 +101,7 @@ fn pretty(e: &Expr) -> String {
         Expr::Bin { op, lhs, rhs } => {
             format!("({} {} {})", pretty(lhs), symbol(*op), pretty(rhs))
         }
-        Expr::Var(s) => s.to_string()
+        Expr::Var(s) => s.to_string(),
     }
 }
 
@@ -106,7 +112,7 @@ fn pretty(e: &Expr) -> String {
 #[derive(Debug)]
 enum EvalError {
     DivisionByZero,
-    NoBinding
+    NoBinding,
 }
 
 fn eval(e: &Expr, env: &HashMap<String, i64>) -> Result<i64, EvalError> {
@@ -126,8 +132,8 @@ fn eval(e: &Expr, env: &HashMap<String, i64>) -> Result<i64, EvalError> {
         Expr::Var(s) => {
             let binding = env.get(s);
             match binding {
-                None => {return Err(EvalError::NoBinding)}
-                Some(ss) => {*ss}
+                None => return Err(EvalError::NoBinding),
+                Some(ss) => *ss,
             }
         }
     })

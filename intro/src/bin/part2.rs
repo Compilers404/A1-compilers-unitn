@@ -6,10 +6,10 @@
 //!
 //! Run with `cargo run -p intro --bin part2`.
 
+use crate::Op::Add;
 use std::f32::consts::E;
 use std::mem;
 use std::ops::Deref;
-use crate::Op::Add;
 
 fn main() {
     for mut e in examples() {
@@ -55,7 +55,6 @@ enum Expr {
     },
 }
 
-
 // Constructors, so the examples below read like the expressions they build.
 fn num(n: i64) -> Expr {
     Expr::Num(n)
@@ -92,10 +91,9 @@ fn examples() -> Vec<Expr> {
         // (1 + 3) + 0
         bin(Op::Add, bin(Op::Add, num(1), num(3)), num(0)),
         // -(-(1+0))
-        neg(neg(bin(Op::Add, num(1), num(0))))
+        neg(neg(bin(Op::Add, num(1), num(0)))),
     ]
 }
-
 
 // ---------------------------------------------------------------------------
 // Pretty printing
@@ -173,9 +171,9 @@ fn eval(e: &Expr) -> Result<i64, EvalError> {
 #[allow(dead_code, unused_variables)]
 fn count_additions(e: &Expr) -> usize {
     match e {
-        Expr::Num(_) => {0}
-        Expr::Neg(i) => {count_additions(i)}
-        Expr::Bin { op,lhs,rhs } => {
+        Expr::Num(_) => 0,
+        Expr::Neg(i) => count_additions(i),
+        Expr::Bin { op, lhs, rhs } => {
             let mut sub = count_additions(lhs) + count_additions(rhs);
             if let Add = op {
                 sub += 1;
@@ -204,32 +202,26 @@ fn count_additions(e: &Expr) -> usize {
 #[allow(dead_code, unused_variables)]
 fn simplify(expr: Expr) -> Expr {
     match expr {
-        Expr::Num(n) => {
-            Expr::Num(n)
-        }
+        Expr::Num(n) => Expr::Num(n),
         Expr::Neg(inner) => {
             let inn = simplify(*inner);
             match inn {
-                Expr::Neg(inninn) => {
-                    *inninn
-                }
-                _ =>Expr::Neg(Box::new(inn))
+                Expr::Neg(inninn) => *inninn,
+                _ => Expr::Neg(Box::new(inn)),
             }
-
         }
         Expr::Bin { op, lhs, rhs } => {
             let nlhs = simplify(*lhs);
             let nrhs = simplify(*rhs);
             match (op, nlhs, nrhs) {
-                (Op::Sub, nlhs, Expr::Num(0)) |
-                (Op::Add, nlhs, Expr::Num(0)) => nlhs,
+                (Op::Sub, nlhs, Expr::Num(0)) | (Op::Add, nlhs, Expr::Num(0)) => nlhs,
                 (Op::Sub, Expr::Num(0), nrhs) => Expr::Neg(Box::new(nrhs)),
                 (Op::Add, Expr::Num(0), nrhs) => nrhs,
                 (op, nlhs, nrhs) => Expr::Bin {
                     op: op,
                     lhs: Box::new(nlhs),
-                    rhs: Box::new(nrhs)
-                }
+                    rhs: Box::new(nrhs),
+                },
             }
         }
     }

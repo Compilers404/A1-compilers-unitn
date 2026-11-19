@@ -9,12 +9,12 @@
 //! iterates analyses and transformations until a fixed point is reached.
 
 pub mod cfg;
+pub mod copies;
 pub mod dominators;
 pub mod facts;
 pub mod liveness;
 pub mod memory;
 pub mod optimizer;
 pub mod reaching;
-pub mod copies;
 pub mod reconstruct_cfg;
 pub mod solver;

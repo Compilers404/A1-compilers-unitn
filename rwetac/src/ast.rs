@@ -136,7 +136,7 @@ pub enum StatementKind {
     Compound(Block),
 
     /// An `if` statement with an optional `else` branch.
-    If {    
+    If {
         guard: Expression,
         then_br: Box<Statement>,
         else_br: Option<Box<Statement>>,

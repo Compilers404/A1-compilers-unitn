@@ -59,7 +59,13 @@ pub fn run(cfg: &Cfg, request: FactsRequest) -> FactDump {
         FactsKind::Reaching => {
             let reach_ana = ReachingAnalysis::new(cfg);
             let results = solve(cfg, reach_ana.clone());
-            collect(cfg, &reach_ana, &results, "reaching definitions", request.all)
+            collect(
+                cfg,
+                &reach_ana,
+                &results,
+                "reaching definitions",
+                request.all,
+            )
         }
         FactsKind::Liveness => {
             let live_ana = LivenessAnalysis::new(cfg);

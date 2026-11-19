@@ -250,7 +250,7 @@ pub struct MemLocation {
     wt: W::WType,
 }
 
-fn width( t : &WType) -> usize {
+fn width(t: &WType) -> usize {
     match t {
         WType::I32 => 4,
         WType::I64 => 8,
@@ -287,7 +287,6 @@ impl Analysis for AvailableLoadAnalysis {
         result
     }
 
-    
     //
     fn flow(&self, out_fact: &Self::Fact, lab_instr: (usize, &W::Instruction)) -> Self::Fact {
         let mut out_fact = out_fact.clone();
@@ -322,8 +321,11 @@ impl Analysis for AvailableLoadAnalysis {
             // KILL all loads to specific location
             out_fact.remove(&loc);
             // Different bases may point to the same array (aliasing), so only facts at the same base with a non-overlapping offset survive a store.
-            // Check that the ranges of the offsets do not overlap 
-            out_fact.retain(|l, _| l.base == *name && (l.offset + width(&l.wt) <= *offset || offset + width(t) <= l.offset));
+            // Check that the ranges of the offsets do not overlap
+            out_fact.retain(|l, _| {
+                l.base == *name
+                    && (l.offset + width(&l.wt) <= *offset || offset + width(t) <= l.offset)
+            });
 
             // Insert the new load
             out_fact.insert(loc, val.clone());

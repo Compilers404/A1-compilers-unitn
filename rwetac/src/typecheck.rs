@@ -406,8 +406,9 @@ impl Typechecker {
             let stmt_t = self.typecheck_statement(s, ret_t)?;
             if stmt_t != StatementType::Unit {
                 return Err(TypeError::Generic {
-                    msg: "This statement always returns, so the statements after it are unreachable"
-                        .to_string(),
+                    msg:
+                        "This statement always returns, so the statements after it are unreachable"
+                            .to_string(),
                     span: s.span.clone(),
                 });
             }

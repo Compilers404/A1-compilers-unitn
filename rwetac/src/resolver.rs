@@ -110,7 +110,10 @@ impl StackMap {
         // In reverse order. Since on top is innermost Scope
         let found = self.stack.iter().rev().find_map(|map| map.get(k));
         let op = format!("lookup({k})");
-        trace!("{op:<18}-> {}", found.map_or("undefined", |e| &e.unique_name));
+        trace!(
+            "{op:<18}-> {}",
+            found.map_or("undefined", |e| &e.unique_name)
+        );
         found
     }
 
@@ -137,7 +140,10 @@ impl fmt::Display for StackMap {
                 let mut entries: Vec<_> = map.iter().collect();
                 // A local's suffix is its declaration order; bare names first.
                 entries.sort_by_key(|(name, e)| {
-                    let n = e.unique_name.rsplit_once('.').map(|(_, n)| n.parse::<usize>().unwrap_or(0));
+                    let n = e
+                        .unique_name
+                        .rsplit_once('.')
+                        .map(|(_, n)| n.parse::<usize>().unwrap_or(0));
                     (n, (*name).clone())
                 });
                 let shown: Vec<String> = entries

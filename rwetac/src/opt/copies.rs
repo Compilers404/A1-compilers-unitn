@@ -17,22 +17,31 @@ use std::collections::{HashMap, HashSet};
 
 use tracing::{debug, instrument};
 
-use crate::{opt::{cfg::Cfg, liveness, reaching::rewrite_instr, solver::{Analysis, AnalysisResults}}, wtac::wtac_ast::{Instruction, Value::Var}};
 use crate::wtac::wtac_ast::{self as W};
+use crate::{
+    opt::{
+        cfg::Cfg,
+        liveness,
+        reaching::rewrite_instr,
+        solver::{Analysis, AnalysisResults},
+    },
+    wtac::wtac_ast::{Instruction, Value::Var},
+};
 
 /// Forward must analysis: computes which copies are available at each program point.
 ///
 /// It holds the names of the globals, because a call may write any of them.
 #[derive(Debug, Clone)]
 pub struct AvailableCopiesAnalysis {
-    globals : HashSet<String>,
+    globals: HashSet<String>,
 }
 
 impl AvailableCopiesAnalysis {
-
     /// Takes the globals from `cfg`.
-    pub fn new(cfg : &Cfg) -> Self {
-        AvailableCopiesAnalysis { globals: cfg.globals.keys().cloned().collect() }
+    pub fn new(cfg: &Cfg) -> Self {
+        AvailableCopiesAnalysis {
+            globals: cfg.globals.keys().cloned().collect(),
+        }
     }
 }
 
@@ -43,7 +52,7 @@ impl Analysis for AvailableCopiesAnalysis {
 
     /// Intersection of all predecessor out-facts (must analysis).
     fn combine(&self, facts: &[&Self::Fact]) -> Self::Fact {
-         let mut all_set = HashSet::new();
+        let mut all_set = HashSet::new();
 
         // Start with the union of all facts, then keep only the copies that
         // are in every fact.
@@ -56,7 +65,6 @@ impl Analysis for AvailableCopiesAnalysis {
         all_set
     }
 
-
     /// `OUT = (IN - kill) ∪ gen`
     ///
     /// Kills every copy that mentions the defined variable, and at a call every
@@ -67,14 +75,20 @@ impl Analysis for AvailableCopiesAnalysis {
         // KILLS at a call: the callee may write any global, so a copy (y, g)
         // or (g, y) with a global g may no longer hold afterwards.
         if let Instruction::FCall { .. } = lab_instr.1 {
-            out_fact.retain(|(dst, src)| !self.globals.contains(dst) && !self.globals.contains(src));
+            out_fact
+                .retain(|(dst, src)| !self.globals.contains(dst) && !self.globals.contains(src));
         }
         // KILLS: every copy that mentions the defined variable, on either side.
         if let Some(def) = liveness::def_of_instr(lab_instr.1) {
             out_fact.retain(|(dst, src)| *dst != def && *src != def);
         }
         // GEN: a copy between two variables. Loads and stores are not copies.
-        if let Instruction::Copy { src : Var(s), dst: Var(d), .. } = lab_instr.1 {
+        if let Instruction::Copy {
+            src: Var(s),
+            dst: Var(d),
+            ..
+        } = lab_instr.1
+        {
             // x = x says nothing, and propagating it would never stop.
             if s != d {
                 out_fact.insert((d.clone(), s.clone()));
@@ -106,7 +120,11 @@ impl Analysis for AvailableCopiesAnalysis {
         // The in-facts are recomputed from the predecessors, except at the entry.
         for block_id in cfg.blocks.keys() {
             in_facts.insert(*block_id, self.initial_fact());
-            let out = if *block_id == cfg.get_entry() { HashSet::new() } else { all_copies.clone() };
+            let out = if *block_id == cfg.get_entry() {
+                HashSet::new()
+            } else {
+                all_copies.clone()
+            };
             out_facts.insert(*block_id, out);
         }
 
@@ -145,7 +163,7 @@ pub fn copy_propagation(cfg: &mut Cfg, res: &AnalysisResults<AvailableCopiesAnal
 
 /// Returns every copy `(dst, src)` between two variables in the function: the
 /// start value of the must analysis.
-fn all_copies(cfg : &Cfg) -> HashSet<(String, String)> {
+fn all_copies(cfg: &Cfg) -> HashSet<(String, String)> {
     let mut all_copies = HashSet::new();
     for block in cfg.blocks.values() {
         for (_, instr) in &block.lab_instructions {

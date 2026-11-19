@@ -65,12 +65,7 @@ impl<'a> InstrBuilder<'a> {
 
     /// `dst: bool = src1 cmp src2` — comparison on operands of type `operand_ty`,
     /// result is always `Bool`.
-    pub(super) fn compare(
-        &mut self,
-        op: W::BinaryOp,
-        src1: W::Value,
-        src2: W::Value,
-    ) -> W::Value {
+    pub(super) fn compare(&mut self, op: W::BinaryOp, src1: W::Value, src2: W::Value) -> W::Value {
         // The result is a bool (i32) whatever the operands were.
         let dst = self.gene.make_wtac_var(W::WType::I32);
         self.instrs.push(W::Instruction::Binary {

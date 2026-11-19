@@ -41,7 +41,6 @@ fn apply(op: Op, a: i64, b: i64) -> i64 {
     }
 }
 
-
 fn simple_enum() {
     println!("=== 1. A simple enum ===");
 
@@ -108,7 +107,6 @@ fn lookup(table: &[(&str, i64)], name: &str) -> Option<i64> {
     None
 }
 
-
 fn options() {
     println!("=== 3. Option ===");
 
@@ -149,7 +147,6 @@ fn parse_and_add(a: &str, b: &str) -> Result<i64, std::num::ParseIntError> {
     let b: i64 = b.parse()?;
     Ok(a + b)
 }
-
 
 fn results() {
     println!("=== 4. Result ===");

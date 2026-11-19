@@ -1,4 +1,3 @@
-
 //! Small utility functions and traits used across the compiler.
 
 /// Rounds `x` up to the nearest multiple of `n`.

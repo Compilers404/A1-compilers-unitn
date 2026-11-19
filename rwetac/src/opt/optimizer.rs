@@ -8,8 +8,8 @@ use std::collections::HashSet;
 
 use tracing::{debug, info, warn};
 
-use crate::opt::copies::AvailableCopiesAnalysis;
 use crate::opt::cfg::{self, Cfg};
+use crate::opt::copies::AvailableCopiesAnalysis;
 use crate::opt::dominators::{self};
 use crate::opt::liveness::LivenessAnalysis;
 use crate::opt::memory::{AvailableLoadAnalysis, PointerAnalysis};

@@ -223,7 +223,9 @@ impl fmt::Display for SymbolTable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut entries: Vec<_> = self.symbols.iter().collect();
         entries.sort_by_key(|(name, _)| {
-            let n = name.rsplit_once('.').map(|(_, n)| n.parse::<usize>().unwrap_or(0));
+            let n = name
+                .rsplit_once('.')
+                .map(|(_, n)| n.parse::<usize>().unwrap_or(0));
             (n, (*name).clone())
         });
         let shown: Vec<String> = entries

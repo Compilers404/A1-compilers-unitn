@@ -23,13 +23,14 @@ type Def = (usize, String);
 /// Forward may analysis: computes which definitions reach each program point.
 #[derive(Debug, Clone)]
 pub struct ReachingAnalysis {
-    globals : HashSet<String>,
+    globals: HashSet<String>,
 }
 
 impl ReachingAnalysis {
-
-    pub fn new(cfg : &Cfg) -> Self {
-        ReachingAnalysis { globals: cfg.globals.keys().cloned().collect() }
+    pub fn new(cfg: &Cfg) -> Self {
+        ReachingAnalysis {
+            globals: cfg.globals.keys().cloned().collect(),
+        }
     }
 }
 
@@ -54,7 +55,7 @@ impl Analysis for ReachingAnalysis {
         if let Instruction::FCall { .. } = lab_instr.1 {
             // kill all global definitions
             out_fact.retain(|(_, var)| !self.globals.contains(var));
-            // Add all globals here and assume the call changed all of them. 
+            // Add all globals here and assume the call changed all of them.
             out_fact.extend(self.globals.iter().map(|g| (lab_instr.0, g.clone())));
         }
         // KILLS Remove all previous defs of variable
@@ -261,7 +262,6 @@ pub fn constant_propagation(cfg: &mut Cfg, use_def: &UseDef) -> bool {
     }
     changed
 }
-
 
 /// Replaces binary and unary operations on constant operands with their
 /// computed result. Also simplifies identity operations like `x + 0` and `x - 0`.

@@ -66,7 +66,10 @@ pub fn def_of_instr(instr: &W::Instruction) -> Option<String> {
         W::Instruction::Unary { dst, .. }
         | W::Instruction::Binary { dst, .. }
         | W::Instruction::Copy { dst, .. }
-        | W::Instruction::FCall { dst: Some((dst, ..)), .. } => {
+        | W::Instruction::FCall {
+            dst: Some((dst, ..)),
+            ..
+        } => {
             match dst {
                 W::Value::Var(v) => Some(v.clone()),
                 _ => None, //  I may need to add stores here as well. For now works without as well
@@ -79,13 +82,14 @@ pub fn def_of_instr(instr: &W::Instruction) -> Option<String> {
 /// Backward may analysis: computes the set of live variables at each program point.
 #[derive(Debug, Clone)]
 pub struct LivenessAnalysis {
-    globals : HashSet<String>
+    globals: HashSet<String>,
 }
 
 impl LivenessAnalysis {
-    
-    pub fn new(cfg : & Cfg) -> Self {
-        LivenessAnalysis { globals: cfg.globals.keys().cloned().collect() }
+    pub fn new(cfg: &Cfg) -> Self {
+        LivenessAnalysis {
+            globals: cfg.globals.keys().cloned().collect(),
+        }
     }
 }
 // Probably dont need to own the strings inside here &'a str may be better
@@ -106,9 +110,6 @@ impl Analysis for LivenessAnalysis {
     /// Removes the defined variable from the live set, then adds all used variables.
     fn flow(&self, out_fact: &Self::Fact, lab_instr: (usize, &W::Instruction)) -> Self::Fact {
         let mut in_fact = out_fact.clone();
-
-        
-
 
         // KILLS defined variable from fact
         if let Some(def) = def_of_instr(lab_instr.1) {
@@ -164,8 +165,15 @@ impl Analysis for LivenessAnalysis {
 
 /// Instructions with side effects cannot be removed even when they are dead
 /// Div and Mod can trap (Div by 0)
-pub fn has_side_effect(instr : &Instruction) -> bool {
-    matches!(instr, Instruction::FCall { .. } | Instruction::Binary { op : BinaryOp::Div |  BinaryOp::Mod, .. })
+pub fn has_side_effect(instr: &Instruction) -> bool {
+    matches!(
+        instr,
+        Instruction::FCall { .. }
+            | Instruction::Binary {
+                op: BinaryOp::Div | BinaryOp::Mod,
+                ..
+            }
+    )
 }
 
 /// Removes instructions that define a variable which is dead after that point.
