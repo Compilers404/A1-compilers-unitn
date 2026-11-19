@@ -662,6 +662,11 @@ impl<'a> Parser<'a> {
             self.consume();
         }        
 
+        // Consume optional left brace
+        if *self.peek() == Token::LParen {
+            self.consume();
+        }
+
         let mut inner_stmt_vec = Vec::new();
         
         if let Ok(block) = self.parse_statement(){
