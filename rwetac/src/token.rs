@@ -123,6 +123,10 @@ pub enum Token {
     Else,
     #[token("while")]
     While,
+    #[token("for")]
+    For,
+    #[token("do")]
+    Do,
     #[token("int")]
     TInt,
     #[token("bool")]
@@ -177,5 +181,17 @@ mod tests {
     fn test_string_with_unicode_escape() {
         let tok = lex_one(r#""\u0041""#); // 'A'
         assert_eq!(tok, Token::StringLiteral("A".into()));
+    }
+
+    #[test]
+    fn test_do_token() {
+        let tok = lex_one(r#"do"#);
+        assert_eq!(tok, Token::Do);
+    }
+
+    #[test]
+    fn test_for_token() {
+        let tok = lex_one(r#"for"#);
+        assert_eq!(tok, Token::For);
     }
 }

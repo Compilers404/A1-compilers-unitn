@@ -416,6 +416,8 @@ impl<'a> Parser<'a> {
             Token::If => self.parse_if(),
             Token::While => self.parse_while(),
             Token::Return => self.parse_return(),
+            Token::For => self.parse_for(),
+            Token::Do => self.parse_do_while(),
             Token::Var(_) | Token::Int(_) => {
                 // could be assignment or declaration or prcedure call.
                 match self.peek_n(1) {
@@ -626,6 +628,88 @@ impl<'a> Parser<'a> {
             span: span_key,
         })
     }
+
+    fn parse_do_while(&mut self) -> PResult<Statement>{
+        todo!();
+    }
+
+    fn parse_for(&mut self) -> PResult<Statement>{
+        let span_key = self.expect(Token::For)?;
+        
+        // Consume optional left brace
+        if *self.peek() == Token::LParen {
+            self.consume();
+        }
+
+        // Parsing initialization statement
+        let init = self.parse_statement();
+        // Consume optional semicolon that lexer inserted after single-line condition
+        if *self.peek() == Token::Semicolon {
+            self.consume();
+        }
+
+        // Parsing guard expression
+        let guard = self.parse_expression(0);
+        // Consume optional semicolon that lexer inserted after single-line condition
+        if *self.peek() == Token::Semicolon {
+            self.consume();
+        }
+
+        // Parsing increment statement
+        let increment = self.parse_statement();
+        // Consume optional semicolon that lexer inserted after single-line condition
+        if *self.peek() == Token::Semicolon {
+            self.consume();
+        }        
+
+        let mut inner_stmt_vec = Vec::new();
+        
+        if let Ok(block) = self.parse_statement(){
+            inner_stmt_vec.push(block);
+        }
+
+        if let Ok(incr) = increment{
+            inner_stmt_vec.push(incr);
+        }
+
+        let while_body = Block{stmts: inner_stmt_vec};
+        
+        let statement = Statement{kind: StatementKind::Compound(while_body), span: span_key.clone()};
+
+        let mut kind;
+        // Adding the guard inside the look, if none enter a true
+        if let Ok(g) = guard{
+            kind = StatementKind::While { guard: g, body: Box::new(statement)};
+        }else{
+            // span of true - todo()
+            let expression = Expression{kind: ExpressionKind::Bool(true), span: span_key.clone()};
+            kind = StatementKind::While { guard: expression, body: Box::new(statement)};
+        }
+
+        let mut vec = Vec::new();
+
+        if let Ok(ini) = init{
+            vec.push(ini);
+        }
+
+        vec.push(Statement{kind, span: span_key.clone()});
+
+        let block = Block{stmts: vec};
+
+        let out = StatementKind::Compound(block);
+        
+        /*if init.is_some(){
+           outer_block.add(0, init); 
+        }*/
+
+
+        Ok(Statement {
+            kind: out,
+            span: span_key.clone(),
+        })
+        
+    }
+
 
     /// Parses an expression using precedence climbing (Pratt parsing).
     ///
