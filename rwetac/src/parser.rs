@@ -418,62 +418,7 @@ impl<'a> Parser<'a> {
             Token::Return => self.parse_return(),
             Token::For => self.parse_for(),
             Token::Do => self.parse_do_while(),
-            Token::Var(_) | Token::Int(_) => {
-                // could be assignment or declaration or prcedure call.
-                match self.peek_n(1) {
-                    Token::LParen => self.parse_procedure(),
-                    // If it is multi assign then it can contain variable declartions!
-                    // a :int, b = 2, 4 is a multi assign!
-                    // a.field = 2 a = 4 b, c[1] = 5 a, a[1] = 3, 4 a : int, b = 2, 3
-                    //
-                    _ => {
-                        // Assign or declaration
-                        let mut lvals = self.parse_lvals()?;
-                        // If only one element and its declaratoin then we have a normal declaration and try to parse an initialzier
-                        if lvals.len() == 1 && matches!(&lvals[0], LVal::V(_)) {
-                            // parse initialzer
-                            if let LVal::V(mut vd) = lvals.pop().unwrap() {
-                                let (init, init_span) = match self.peek() {
-                                    Token::Equal => {
-                                        self.consume();
-                                        let expr = self.parse_expression(0)?;
-                                        let expr_span = expr.span.clone();
-                                        (Some(expr), expr_span)
-                                    }
-                                    _ => (None, vd.span.clone()),
-                                };
-                                self.expect(Token::Semicolon)?;
-
-                                vd.init = init;
-                                // println!("Full Local : {:?}", vd);
-                                let vd_span = vd.span.clone();
-                                let kind = StatementKind::LocalDecl(vd);
-                                Ok(Statement {
-                                    kind,
-                                    span: vd_span.merge(&init_span),
-                                })
-                            } else {
-                                unreachable!("Should not be possible")
-                            }
-                        } else {
-                            // Need to parse equal and rhs
-                            self.expect(Token::Equal)?;
-                            // Relies on Semicolon
-                            let rhs = self.parse_sep_list_comma(Token::Semicolon, |p| {
-                                p.parse_expression(0)
-                            })?;
-                            self.expect(Token::Semicolon)?;
-                            let span_start = lvals.first().unwrap().span();
-                            let span_last = rhs.last().unwrap().span.clone();
-                            let kind = StatementKind::Assign { lhs: lvals, rhs };
-                            Ok(Statement {
-                                kind,
-                                span: span_start.merge(&span_last),
-                            })
-                        }
-                    }
-                }
-            }
+            Token::Var(_) | Token::Int(_) => self.parse_simple_stmt(true),
             // { block }
             Token::LBrace => {
                 let span_start = self.expect(Token::LBrace)?;
@@ -575,13 +520,82 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_procedure(&mut self) -> PResult<Statement> {
+    /// Parses an identifier-led simple statement: a procedure call, a local
+    /// declaration or an (multi-)assignment.
+    ///
+    /// When `terminated` is `true` the trailing [`Token::Semicolon`] is required
+    /// and consumed (normal statements). When `false` it is neither required nor
+    /// consumed, which is needed for the `for` increment, e.g.
+    /// `for i: int = 0; i < n; i = i + 1 { ... }`, where `{` follows directly.
+    pub fn parse_simple_stmt(&mut self, terminated: bool) -> PResult<Statement> {
+        // could be assignment or declaration or prcedure call.
+        match self.peek_n(1) {
+            Token::LParen => self.parse_procedure(terminated),
+            // If it is multi assign then it can contain variable declartions!
+            // a :int, b = 2, 4 is a multi assign!
+            // a.field = 2 a = 4 b, c[1] = 5 a, a[1] = 3, 4 a : int, b = 2, 3
+            //
+            _ => {
+                // Assign or declaration
+                let mut lvals = self.parse_lvals()?;
+                // If only one element and its declaratoin then we have a normal declaration and try to parse an initialzier
+                if lvals.len() == 1 && matches!(&lvals[0], LVal::V(_)) {
+                    // parse initialzer
+                    if let LVal::V(mut vd) = lvals.pop().unwrap() {
+                        let (init, init_span) = match self.peek() {
+                            Token::Equal => {
+                                self.consume();
+                                let expr = self.parse_expression(0)?;
+                                let expr_span = expr.span.clone();
+                                (Some(expr), expr_span)
+                            }
+                            _ => (None, vd.span.clone()),
+                        };
+                        if terminated {
+                            self.expect(Token::Semicolon)?;
+                        }
+
+                        vd.init = init;
+                        // println!("Full Local : {:?}", vd);
+                        let vd_span = vd.span.clone();
+                        let kind = StatementKind::LocalDecl(vd);
+                        Ok(Statement {
+                            kind,
+                            span: vd_span.merge(&init_span),
+                        })
+                    } else {
+                        unreachable!("Should not be possible")
+                    }
+                } else {
+                    // Need to parse equal and rhs
+                    self.expect(Token::Equal)?;
+                    // Relies on Semicolon
+                    let rhs =
+                        self.parse_sep_list_comma(Token::Semicolon, |p| p.parse_expression(0))?;
+                    if terminated {
+                        self.expect(Token::Semicolon)?;
+                    }
+                    let span_start = lvals.first().unwrap().span();
+                    let span_last = rhs.last().unwrap().span.clone();
+                    let kind = StatementKind::Assign { lhs: lvals, rhs };
+                    Ok(Statement {
+                        kind,
+                        span: span_start.merge(&span_last),
+                    })
+                }
+            }
+        }
+    }
+
+    fn parse_procedure(&mut self, terminated: bool) -> PResult<Statement> {
         debug!("Parsing procedure");
         let (name, span_name) = self.expect_id()?;
         self.expect(Token::LParen)?;
         let args = self.parse_sep_list_comma(Token::RParen, |p| p.parse_expression(0))?;
         let span_end = self.expect(Token::RParen)?;
-        self.expect(Token::Semicolon)?;
+        if terminated {
+            self.expect(Token::Semicolon)?;
+        }
         let kind = StatementKind::Procedure { name, args };
         Ok(Statement {
             kind,
@@ -612,44 +626,51 @@ impl<'a> Parser<'a> {
         let span_key = self.expect(Token::For)?;
 
         // Consume optional left brace
-        if *self.peek() == Token::LParen {
-            self.consume();
-        }
+        self.consume_optional_token(Token::LParen);
 
-        // Parsing initialization statement
-        let init = self.parse_statement();
-        // Consume optional semicolon that lexer inserted after single-line condition
-        if *self.peek() == Token::Semicolon {
-            self.consume();
-        }
+        // Parsing initialization statement: it could be empty
+        let init = if *self.peek() == Token::Semicolon {
+            self.expect(Token::Semicolon)?;
+            None
+        } else {
+            Some(self.parse_simple_stmt(true)?)
+        };
+        self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
 
         // Parsing guard expression
-        let guard = self.parse_expression(0);
-        // Consume optional semicolon that lexer inserted after single-line condition
-        if *self.peek() == Token::Semicolon {
-            self.consume();
-        }
+        let guard = if *self.peek() == Token::Semicolon {
+            // If no guard is provided, we can assume it to be true
+            let expression = Expression {
+                kind: ExpressionKind::Bool(true),
+                span: span_key.clone(),
+            };
+            expression
+        } else {
+            self.parse_expression(0)?
+        };
+        self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
 
-        // Parsing increment statement
-        let increment = self.parse_statement();
-        // Consume optional semicolon that lexer inserted after single-line condition
-        println!("Increment: {:?}", increment);
-        if *self.peek() == Token::Semicolon {
-            self.consume();
-        }
+        // Parsing increment statement, which does not require the final semicolon
+        //let increment = self.parse_simple_stmt(false);
+        let increment = if *self.peek() == Token::RParen
+            || *self.peek() == Token::LBrace
+            || *self.peek() == Token::Semicolon
+        {
+            None
+        } else {
+            Some(self.parse_simple_stmt(false)?)
+        };
+        self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
 
-        // Consume optional left brace
-        if *self.peek() == Token::LParen {
-            self.consume();
-        }
+        // Consume optional right brace
+        self.consume_optional_token(Token::RParen);
 
+        // Parse the body of the for loop
         let mut inner_stmt_vec = Vec::new();
+        inner_stmt_vec.push(self.parse_statement()?);
 
-        if let Ok(block) = self.parse_statement() {
-            inner_stmt_vec.push(block);
-        }
-
-        if let Ok(incr) = increment {
+        // If there is an increment, it is pushed after the for loop body
+        if let Some(incr) = increment {
             inner_stmt_vec.push(incr);
         }
 
@@ -662,28 +683,15 @@ impl<'a> Parser<'a> {
             span: span_key.clone(),
         };
 
-        let kind;
-        // Adding the guard inside the look, if none enter a true
-        if let Ok(g) = guard {
-            kind = StatementKind::While {
-                guard: g,
-                body: Box::new(statement),
-            };
-        } else {
-            // span of true - todo()
-            let expression = Expression {
-                kind: ExpressionKind::Bool(true),
-                span: span_key.clone(),
-            };
-            kind = StatementKind::While {
-                guard: expression,
-                body: Box::new(statement),
-            };
-        }
-
+        // Adding the guard to the While loop
+        let kind = StatementKind::While {
+            guard,
+            body: Box::new(statement),
+        };
         let mut vec = Vec::new();
 
-        if let Ok(ini) = init {
+        // If init is some, it is added to the block
+        if let Some(ini) = init {
             vec.push(ini);
         }
 
@@ -692,19 +700,22 @@ impl<'a> Parser<'a> {
             span: span_key.clone(),
         });
 
+        // Adding an outer block to enforce the scope of the for loop
         let block = Block { stmts: vec };
-
         let out = StatementKind::Compound(block);
-
-        /*if init.is_some(){
-           outer_block.add(0, init);
-        }*/
 
         Ok(Statement {
             kind: out,
             span: span_key.clone(),
         })
     }
+
+    fn consume_optional_token(&mut self, token: Token) {
+        if *self.peek() == token {
+            self.consume();
+        }
+    }
+
     fn parse_if(&mut self) -> PResult<Statement> {
         let span_key = self.expect(Token::If)?;
         let guard = self.parse_expression(0)?;
