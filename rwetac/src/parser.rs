@@ -11,7 +11,7 @@
 //! at the top level (e.g. `foo(` vs `foo:`).
 
 use core::panic;
-use std::fmt;
+use std::{fmt, println};
 
 use crate::lexer::Lexer;
 use crate::types::Type;
@@ -633,10 +633,10 @@ impl<'a> Parser<'a> {
             self.expect(Token::Semicolon)?;
             None
         } else {
-            Some(self.parse_simple_stmt(true)?)
+            Some(self.parse_simple_stmt(false)?)
         };
         self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
-
+     
         // Parsing guard expression
         let guard = if *self.peek() == Token::Semicolon {
             // If no guard is provided, we can assume it to be true

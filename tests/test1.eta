@@ -4,6 +4,16 @@ main() : int {
         a = a+1;
     }
 
+    for (; a <15; a = a + 2){
+    }
+
+    for (; a <20;){
+        a = a + 1;
+    }
+
+    for j: int = 3 ; ; j = j - 1 {
+
+    }
 
     return a
 }
