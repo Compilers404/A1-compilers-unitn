@@ -1,20 +1,13 @@
 main() : int {
-    a : int = 0;
-    for i: int = 0; i < 10; i = i + 1 {
-        a = a+1;
+    b : int = 0;
+    c : int = 0;
+    for i : int = 0;i < 3; i = 1 + i{
+       while(b < i){
+          b = b+1
+       }
+
+       c = c + b
     }
 
-    for (; a <15; a = a + 2){
-    }
-
-    for (; a <20;){
-        a = a + 1;
-    }
-
-    for j: int = 3 ; ; j = j - 1 {
-
-    }
-
-    return a
+    return c
 }
-

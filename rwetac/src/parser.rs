@@ -11,7 +11,7 @@
 //! at the top level (e.g. `foo(` vs `foo:`).
 
 use core::panic;
-use std::{fmt, println};
+use std::fmt;
 
 use crate::lexer::Lexer;
 use crate::types::Type;
@@ -604,7 +604,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_do_while(&mut self) -> PResult<Statement> {
-        todo!();
+        todo!()
     }
 
     fn parse_while(&mut self) -> PResult<Statement> {
@@ -625,33 +625,39 @@ impl<'a> Parser<'a> {
     fn parse_for(&mut self) -> PResult<Statement> {
         let span_key = self.expect(Token::For)?;
 
+        // Standard format of the for
+        // for init; condition; increment {body}
+
         // Consume optional left brace
         self.consume_optional_token(Token::LParen);
 
-        // Parsing initialization statement: it could be empty
+        // Parsing initialization statement (it could be empty)
         let init = if *self.peek() == Token::Semicolon {
             self.expect(Token::Semicolon)?;
             None
         } else {
             Some(self.parse_simple_stmt(false)?)
         };
+
         self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
-     
-        // Parsing guard expression
-        let guard = if *self.peek() == Token::Semicolon {
-            // If no guard is provided, we can assume it to be true
-            let expression = Expression {
+
+        // Parsing condition expression (it could be empty)
+        let condition = if *self.peek() == Token::Semicolon {
+            // If no condition is provided, we can assume it to be true
+            Expression {
                 kind: ExpressionKind::Bool(true),
-                span: span_key.clone(),
-            };
-            expression
+                span: self.peek_span(),
+            }
         } else {
             self.parse_expression(0)?
         };
+
+        let condition_span = condition.span.clone();
+
         self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
 
         // Parsing increment statement, which does not require the final semicolon
-        //let increment = self.parse_simple_stmt(false);
+        // let increment = self.parse_simple_stmt(false);
         let increment = if *self.peek() == Token::RParen
             || *self.peek() == Token::LBrace
             || *self.peek() == Token::Semicolon
@@ -667,46 +673,67 @@ impl<'a> Parser<'a> {
 
         // Parse the body of the for loop
         let mut inner_stmt_vec = Vec::new();
-        inner_stmt_vec.push(self.parse_statement()?);
+
+        let for_body_stmt = self.parse_statement()?;
+        let mut for_body_span = for_body_stmt.span.clone();
+
+        inner_stmt_vec.push(for_body_stmt);
 
         // If there is an increment, it is pushed after the for loop body
-        if let Some(incr) = increment {
-            inner_stmt_vec.push(incr);
+
+
+        if let Some(incr_stmt) = increment {
+            for_body_span = (incr_stmt.span).merge(&for_body_span);
+            inner_stmt_vec.push(incr_stmt);
         }
 
-        let while_body = Block {
-            stmts: inner_stmt_vec,
-        };
-
-        let statement = Statement {
-            kind: StatementKind::Compound(while_body),
-            span: span_key.clone(),
+        // Creating while loop body
+        let while_body_stmt = Statement {
+            kind: StatementKind::Compound(Block {stmts: inner_stmt_vec,}),
+            span: for_body_span.clone(),
         };
 
         // Adding the guard to the While loop
-        let kind = StatementKind::While {
-            guard,
-            body: Box::new(statement),
+        let while_kind = StatementKind::While {
+            guard: condition,
+            body: Box::new(while_body_stmt),
         };
-        let mut vec = Vec::new();
+
+        // Outer block 
+        let mut outer_stmt_vec = Vec::new();
 
         // If init is some, it is added to the block
-        if let Some(ini) = init {
-            vec.push(ini);
+        let mut init_span = None;
+
+        if let Some(init_stmt) = init {
+            init_span = Some(init_stmt.span.clone());
+            outer_stmt_vec.push(init_stmt)
+
         }
 
-        vec.push(Statement {
-            kind,
-            span: span_key.clone(),
-        });
+        let while_span = (for_body_span).merge(&condition_span);
+
+        let while_stmt = Statement {
+            kind: while_kind,
+            span: while_span.clone(),
+        };
+
+        outer_stmt_vec.push(while_stmt);
 
         // Adding an outer block to enforce the scope of the for loop
-        let block = Block { stmts: vec };
-        let out = StatementKind::Compound(block);
+        let outer_block = Block { stmts: outer_stmt_vec };
+        let out = StatementKind::Compound(outer_block);
+
+        let span = if let Some(s) = init_span{
+            s.merge(&while_span)
+        }
+        else{
+            while_span
+        };
 
         Ok(Statement {
             kind: out,
-            span: span_key.clone(),
+            span,
         })
     }
 

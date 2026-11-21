@@ -1,0 +1,14 @@
+a : int = 0;
+
+increment () {
+    a = a + 1;
+}
+
+main() : int {
+    b : int = 0;
+    for a = 0;  a < 12; increment() {
+        b = a
+    }
+
+    return a
+}
