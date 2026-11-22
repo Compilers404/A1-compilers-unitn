@@ -604,7 +604,44 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_do_while(&mut self) -> PResult<Statement> {
-        todo!()
+        let span_key = self.expect(Token::Do)?;
+        let body = self.parse_statement()?;
+        self.expect(Token::While)?;
+        self.consume_optional_token(Token::LParen);
+        let guard = self.parse_expression(0)?;
+        self.consume_optional_token(Token::RParen);
+        self.consume_optional_token(Token::Semicolon);
+
+        let while_span = (body.span.clone().merge(&guard.span));
+
+        let while_kind = StatementKind::While {
+            guard,
+            body : Box::new(body),
+        
+        };
+
+        // Outer block 
+        let mut outer_stmt_vec = Vec::new();
+        outer_stmt_vec.push(body);
+        
+     
+
+        let while_stmt = Statement {
+            kind: while_kind,
+            span: while_span.clone(),
+        };
+
+        outer_stmt_vec.push(while_stmt);
+
+        // Adding an outer block to enforce the scope of the for loop
+        let outer_block = Block { stmts: outer_stmt_vec };
+        let out = StatementKind::Compound(outer_block);
+
+        Ok(Statement {
+            kind: out,
+            span: span_key,
+        })
+            
     }
 
     fn parse_while(&mut self) -> PResult<Statement> {
