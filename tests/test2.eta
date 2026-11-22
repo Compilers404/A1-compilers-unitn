@@ -1,6 +1,6 @@
 main() : int {
     a : int = 0;
-    for ;; a = a + 1 {
+    for ; ; a = a + 1 {
         a = a*1
     }
 
