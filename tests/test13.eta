@@ -1,0 +1,8 @@
+// This does not parse because parsing the statement requires a semicolon or the braces after the body
+main() : int {
+    a : int = 0;
+    do  a = a + 3 while (a < 10);
+    i: int = 4;
+
+    return a
+}   

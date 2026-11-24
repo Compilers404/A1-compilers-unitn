@@ -14,7 +14,7 @@ use core::panic;
 use std::fmt;
 
 use crate::lexer::Lexer;
-use crate::types::Type;
+use crate::types::Type::{self, Bool};
 use crate::util::Merge;
 use crate::{ast::*, token::Token};
 use logos::Span;
@@ -425,8 +425,8 @@ impl<'a> Parser<'a> {
                 let block = self.parse_block()?;
                 let span_end = self.expect(Token::RBrace)?;
                 // The lexer only inserts the terminating semicolon when a newline
-                // follows `}`, so in `} else {` there is none.
-                if *self.peek() != Token::Else {
+                // follows `}`, so in `} else {` or `do { ... } while` there is none.
+                if *self.peek() != Token::Else && *self.peek() != Token::While {
                     self.expect(Token::Semicolon)?;
                 }
                 let kind = StatementKind::Compound(Block { stmts: block });
@@ -603,45 +603,104 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Desugars `do body while (guard)` into
+    ///
+    /// ```text
+    /// { $do_cond: bool = true; while $do_cond { if(true) { body } $do_cond = guard } }
+    /// ```
+    ///
+    /// The body appears once and the guard is evaluated exactly
+    /// once per iteration, after the body. `$` cannot appear in user identifiers,
+    /// so `$do_cond` cannot clash with user variables.
     fn parse_do_while(&mut self) -> PResult<Statement> {
+        const COND: &str = "$do_cond";
+
         let span_key = self.expect(Token::Do)?;
+
+        // Parsing do-while body
         let body = self.parse_statement()?;
+
+        self.consume_optional_token(Token::Semicolon);
         self.expect(Token::While)?;
         self.consume_optional_token(Token::LParen);
+
+        // Parsing do-while guard
         let guard = self.parse_expression(0)?;
+
         self.consume_optional_token(Token::RParen);
         self.consume_optional_token(Token::Semicolon);
 
-        let while_span = (body.span.clone().merge(&guard.span));
+        let guard_span = guard.span.clone();
+        let loop_span = span_key.clone().merge(&guard_span);
 
-        let while_kind = StatementKind::While {
-            guard,
-            body : Box::new(body),
-        
+        let cond_var = |span: Span| Expression {
+            kind: ExpressionKind::Var(COND.to_string()),
+            span,
         };
 
-        // Outer block 
-        let mut outer_stmt_vec = Vec::new();
-        outer_stmt_vec.push(body);
-        
-     
+        // $do_cond: bool = true;
+        let cond_decl = Statement {
+            kind: StatementKind::LocalDecl(VarDeclaration {
+                name: COND.to_string(),
+                init: Some(Expression {
+                    kind: ExpressionKind::Bool(true),
+                    span: span_key.clone(),
+                }),
+                var_type: Bool,
+                dims: Vec::new(),
+                span: span_key.clone(),
+            }),
+            span: span_key.clone(),
+        };
 
+        // $do_cond = guard;
+        let cond_assign = Statement {
+            kind: StatementKind::Assign {
+                lhs: vec![LVal::E(cond_var(guard_span.clone()))],
+                rhs: vec![guard],
+            },
+            span: guard_span.clone(),
+        };
+
+        // Wrap the body in `if true { body }` so it is typed as Unit even if it
+        // always returns; otherwise the guard update would be flagged unreachable.
+        let body_span = body.span.clone();
+        let wrapped_body = Statement {
+            kind: StatementKind::If {
+                guard: Expression {
+                    kind: ExpressionKind::Bool(true),
+                    span: body_span.clone(),
+                },
+                then_br: Box::new(body),
+                else_br: None,
+            },
+            span: body_span.clone(),
+        };
+
+        // { if true { body }; $do_cond = guard }
+        let while_body = Statement {
+            span: body_span.merge(&guard_span),
+            kind: StatementKind::Compound(Block {
+                stmts: vec![wrapped_body, cond_assign],
+            }),
+        };
+
+        // while $do_cond { ... }
         let while_stmt = Statement {
-            kind: while_kind,
-            span: while_span.clone(),
+            kind: StatementKind::While {
+                guard: cond_var(guard_span),
+                body: Box::new(while_body),
+            },
+            span: loop_span.clone(),
         };
 
-        outer_stmt_vec.push(while_stmt);
-
-        // Adding an outer block to enforce the scope of the for loop
-        let outer_block = Block { stmts: outer_stmt_vec };
-        let out = StatementKind::Compound(outer_block);
-
+        // Outer block enforces the scope of $do_cond
         Ok(Statement {
-            kind: out,
-            span: span_key,
+            kind: StatementKind::Compound(Block {
+                stmts: vec![cond_decl, while_stmt],
+            }),
+            span: loop_span,
         })
-            
     }
 
     fn parse_while(&mut self) -> PResult<Statement> {
@@ -660,7 +719,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_for(&mut self) -> PResult<Statement> {
-        let span_key = self.expect(Token::For)?;
+        let _span_key = self.expect(Token::For)?;
 
         // Standard format of the for
         // for init; condition; increment {body}
@@ -673,7 +732,7 @@ impl<'a> Parser<'a> {
             None
         } else {
             Some(self.parse_simple_stmt(false)?)
-        }; 
+        };
 
         self.consume_optional_token(Token::Semicolon); // Consume optional semicolon
 
@@ -713,10 +772,24 @@ impl<'a> Parser<'a> {
         let for_body_stmt = self.parse_statement()?;
         let mut for_body_span = for_body_stmt.span.clone();
 
-        inner_stmt_vec.push(for_body_stmt);
+        // Wrap the body in `if true { body }` so that it is typed as Unit even
+        // if it always returns; otherwise the increment after it would be
+        // reported as unreachable by the typechecker.
+        let body_span = for_body_stmt.span.clone();
+        let wrapped_body = Statement {
+            kind: StatementKind::If {
+                guard: Expression {
+                    kind: ExpressionKind::Bool(true),
+                    span: body_span.clone(),
+                },
+                then_br: Box::new(for_body_stmt),
+                else_br: None,
+            },
+            span: body_span,
+        };
+        inner_stmt_vec.push(wrapped_body);
 
         // If there is an increment, it is pushed after the for loop body
-
 
         if let Some(incr_stmt) = increment {
             for_body_span = (incr_stmt.span).merge(&for_body_span);
@@ -725,7 +798,9 @@ impl<'a> Parser<'a> {
 
         // Creating while loop body
         let while_body_stmt = Statement {
-            kind: StatementKind::Compound(Block {stmts: inner_stmt_vec,}),
+            kind: StatementKind::Compound(Block {
+                stmts: inner_stmt_vec,
+            }),
             span: for_body_span.clone(),
         };
 
@@ -735,7 +810,7 @@ impl<'a> Parser<'a> {
             body: Box::new(while_body_stmt),
         };
 
-        // Outer block 
+        // Outer block
         let mut outer_stmt_vec = Vec::new();
 
         // If init is some, it is added to the block
@@ -744,7 +819,6 @@ impl<'a> Parser<'a> {
         if let Some(init_stmt) = init {
             init_span = Some(init_stmt.span.clone());
             outer_stmt_vec.push(init_stmt)
-
         }
 
         let while_span = (for_body_span).merge(&condition_span);
@@ -757,20 +831,18 @@ impl<'a> Parser<'a> {
         outer_stmt_vec.push(while_stmt);
 
         // Adding an outer block to enforce the scope of the for loop
-        let outer_block = Block { stmts: outer_stmt_vec };
+        let outer_block = Block {
+            stmts: outer_stmt_vec,
+        };
         let out = StatementKind::Compound(outer_block);
 
-        let span = if let Some(s) = init_span{
+        let span = if let Some(s) = init_span {
             s.merge(&while_span)
-        }
-        else{
+        } else {
             while_span
         };
 
-        Ok(Statement {
-            kind: out,
-            span,
-        })
+        Ok(Statement { kind: out, span })
     }
 
     fn consume_optional_token(&mut self, token: Token) {

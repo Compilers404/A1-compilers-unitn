@@ -1,0 +1,8 @@
+// do/while body must run exactly once even if the guard is false at start. Expected: 5
+main() : int {
+    a : int = 5;
+    do {
+        a = a + 2;
+    } while (false);
+    return a
+}
