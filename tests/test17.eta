@@ -1,0 +1,7 @@
+main() : int {
+    a : int = 0;
+    do {
+        return a;
+    }while (a > 10)
+
+}

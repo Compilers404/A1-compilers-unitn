@@ -631,7 +631,7 @@ impl<'a> Parser<'a> {
         self.consume_optional_token(Token::Semicolon);
 
         let guard_span = guard.span.clone();
-        let loop_span = span_key.clone().merge(&guard_span);
+        let loop_init_span = span_key.clone().merge(&guard_span);
 
         let cond_var = |span: Span| Expression {
             kind: ExpressionKind::Var(COND.to_string()),
@@ -685,6 +685,8 @@ impl<'a> Parser<'a> {
             }),
         };
 
+        let loop_span = body_span.clone().merge(&loop_init_span);
+
         // while $do_cond { ... }
         let while_stmt = Statement {
             kind: StatementKind::While {
@@ -719,7 +721,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_for(&mut self) -> PResult<Statement> {
-        let _span_key = self.expect(Token::For)?;
+        let span_key = self.expect(Token::For)?;
 
         // Standard format of the for
         // for init; condition; increment {body}
@@ -734,7 +736,7 @@ impl<'a> Parser<'a> {
             Some(self.parse_simple_stmt(false)?)
         };
 
-        self.consume_optional_token(Token::Semicolon); // Consume optional semicolon
+        self.expect(Token::Semicolon)?; // Consume optional semicolon
 
         // Parsing condition expression (it could be empty)
         let condition = if *self.peek() == Token::Semicolon {
@@ -749,7 +751,7 @@ impl<'a> Parser<'a> {
 
         let condition_span = condition.span.clone();
 
-        self.consume_optional_token(Token::Semicolon); // Consume optional semicolon 
+        self.expect(Token::Semicolon)?; // Consume optional semicolon 
 
         // Parsing increment statement, which does not require the final semicolon
         // let increment = self.parse_simple_stmt(false);
@@ -842,7 +844,7 @@ impl<'a> Parser<'a> {
             while_span
         };
 
-        Ok(Statement { kind: out, span })
+        Ok(Statement { kind: out, span: span.merge(&span_key) })
     }
 
     fn consume_optional_token(&mut self, token: Token) {

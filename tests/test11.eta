@@ -2,9 +2,9 @@ main() : int {
     a : int = 0;
     do {
         a = a + 3;
-    }while (a < 10)
+    }while (a > 10)
 
     i: int = 4;
 
     return a
-}   
+}
