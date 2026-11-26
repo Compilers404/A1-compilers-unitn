@@ -18,6 +18,7 @@ The bodies of both the _for_ and _do-while_ loops are enclosed within an if true
 * rwetac/src/token.rs: we introduced two new tokens, _Do_ and _For_.
 * rwetac/src/parser.rs: we introduced the functions _parse\_do\_while_ and _parse\_for_, which are called by
 parse statement and contain the desugaring logic. Moreover, we moved the existing logic for parsing identifier-led simple statements (procedure calls, local declarations, and assignments) into the new function _parse\_simple\_stmt (terminated: bool)_, which, depending on the value of terminated, either requires or omits the ending semicolon. This function was necessary since the syntax of the _for_ loop did not include a semicolon after c, yet c required a trailing semicolon to be parsed.
+* tests/: the 6 tests requested by the assignment were addes in this folder
 
 ### Lessons learned
 The main one: **everything comes at a price**. More specifically:
