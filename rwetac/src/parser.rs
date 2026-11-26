@@ -730,13 +730,12 @@ impl<'a> Parser<'a> {
         self.consume_optional_token(Token::LParen);
 
         // Parsing initialization statement (it could be empty)
-        let init = if *self.peek() == Token::Semicolon {
+        let init = if *self.peek() == Token::Semicolon {  
+            self.expect(Token::Semicolon)?; // Consume mandatory semicolon
             None
         } else {
-            Some(self.parse_simple_stmt(false)?)
+            Some(self.parse_simple_stmt(true)?)
         };
-
-        self.expect(Token::Semicolon)?; // Consume optional semicolon
 
         // Parsing condition expression (it could be empty)
         let condition = if *self.peek() == Token::Semicolon {
