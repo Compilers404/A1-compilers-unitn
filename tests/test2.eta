@@ -1,9 +1,22 @@
+decr (x : int ) : int{
+   return x - 1; 
+}
+incr(x : int ) : int{
+   return x + 1;
+}
 main() : int {
-    a : int = 0;
-    for ; ; a = a + 1 {
-        a = a*1
+    pippo : int = 20;
+    pluto : int = 0; 
+    paperino : int = 3;
+    for( ; pippo != 0; pippo = pippo -1){
+        for( i : int = 0; i < 10; i = incr(i)){ pluto = pluto + 1;}
+        paperino = paperino + 2;
     }
+    for ( ; pluto < 30; pluto = decr(pluto)){
+        for ( i : int = 0; i<3 ; i = incr(i)){
+            paperino = paperino - 1;
+        }
+    }
+    return paperino;
 
-
-    return a
 }
