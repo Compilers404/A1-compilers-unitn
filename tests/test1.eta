@@ -1,13 +1,13 @@
+incr(x : int) : int{
+   return x + 1;
+}
 main() : int {
-    b : int = 0;
-    c : int = 0;
-    for i : int = 0;i < 3; i = 1 + i{
-       while(b < i){
-          b = b+1
-       }
+   pippo : int = 0;
+   for (int i = 0; i < 10; incr(i)){
+      pippo = pippo + i; 
+   }
+   for (pippo ; pippo > 2; pippo = pippo -1){
+   }
+   return pippo;
 
-       c = c + b
-    }
-
-    return c
 }
