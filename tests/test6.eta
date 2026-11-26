@@ -1,14 +1,17 @@
-a : int = 0;
-
-increment () {
-    a = a + 1;
+incr(x : int ) : int{
+   return x + 1;
 }
 
 main() : int {
-    b : int = 0;
-    for a = 0;  a < 12; increment() {
-        b = a
-    }
+    a : int = 5;
+    do{
+        a = incr(a);
+    }while(a < 7);
+
+    do {
+        a: int;
+        a = a + 3;
+    }while (a < -3)
 
     return a
 }

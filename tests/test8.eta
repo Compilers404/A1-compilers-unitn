@@ -1,8 +1,0 @@
-main() : int {
-    b : int = 0;
-    for ;  b < 21; {
-        b = b + 1
-    }
-
-    return b
-}
