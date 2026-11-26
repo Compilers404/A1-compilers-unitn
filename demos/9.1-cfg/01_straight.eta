@@ -1,6 +1,0 @@
-// Straight-line code: one basic block between entry and exit.
-f(a : int, b : int) : int {
-    c : int = a + b
-    d : int = c * 2
-    return d
-}
