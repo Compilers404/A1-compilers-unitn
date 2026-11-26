@@ -1,10 +1,6 @@
 main() : int {
-    a : int = 0;
-    do {
-        return a;
-    }while (a < 10)
-
-    i: int = 4;
-
-    return a
-}   
+    a : int = 0
+    i : int = 1;
+    return a;
+    return i;
+}
