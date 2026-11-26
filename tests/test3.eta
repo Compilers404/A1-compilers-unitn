@@ -1,3 +1,13 @@
+func(x : int) : int {
+    y : int = x;
+    for ; x > 10; x = x - 1{
+        y = x;
+        if(x == 39){
+            return y;
+        }
+    }
+    return y; 
+}
 main() : int {
     a : int = 0
     for i : int = 0
@@ -6,5 +16,6 @@ main() : int {
     {
         a = i; 
     }
+    a = a - func(a)
     return a;
 }
